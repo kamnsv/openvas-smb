@@ -25,6 +25,10 @@ that you use the Greenbone Security Manager TRIAL (GSM TRIAL), a prepared virtua
 machine with a readily available setup. Information regarding the virtual machine
 is available at <https://www.greenbone.net/en/testnow>.
 
+## Complete build
+
+For a complete build or rebuild, use the **rebuild** script. Here you can set the path for the installation. Use `chmod + x ./rebuild` once and then call `./rebuild` each time.
+
 ## Support
 
 For any question on the usage of `openvas-smb` please use the [Greenbone
