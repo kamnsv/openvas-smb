@@ -1,0 +1,11 @@
+clear
+rm -d -r build
+rm -d -r inst
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=/home/oazpo/openvas-smb/inst ..
+make                # build the libraries
+make doc            # build the documentation
+make doc-full       # build more developer-oriented documentation
+make install        # install the build
+make rebuild_cache  # rebuild the cmake cache

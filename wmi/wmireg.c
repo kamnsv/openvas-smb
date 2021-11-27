@@ -49,7 +49,6 @@
 #include "lib/com/dcom/proto.h"
 #include <inttypes.h>
 
-
 struct WBEMCLASS;
 struct WBEMOBJECT;
 
@@ -66,53 +65,25 @@ struct WBEMOBJECT;
                         }
 
 struct program_args {
-  char *hostname;       // Hostname
+    char *hostname;
+    unsigned int hive;
+    char *key;
+    char *key_name;
+	char *type;
 };
-
 
 static int parse_args(int argc, char *argv[], struct program_args *pmyargs)
 {
-    poptContext pc;
-    int opt, i;
-    int argc_new;
-    char **argv_new;
- 
-    struct poptOption long_options[] = {
-        POPT_AUTOHELP
-        POPT_COMMON_SAMBA
-        POPT_COMMON_CONNECTION
-        POPT_COMMON_CREDENTIALS
-        POPT_COMMON_VERSION
-        POPT_TABLEEND
-    };
- 
-    pc = poptGetContext("wmic", argc, (const char **) argv,
-                long_options, POPT_CONTEXT_KEEP_FIRST);
- 
- 
-    while ((opt = poptGetNextOpt(pc)) != -1) {
-          poptFreeContext(pc);
-          return 1;
-    }
- 
-    argv_new = discard_const_p(char *, poptGetArgs(pc));
- 
-    argc_new = argc;
-    for (i = 0; i < argc; i++) {
-          if (argv_new[i] == NULL) {
-            argc_new = i;
-            break;
-          }
-    }
-    if (argc_new != 2 || argv_new[1][0] != '/'
-        || argv_new[1][1] != '/') {
-      poptFreeContext(pc);
-          return 1;
-    }
- 
-    pmyargs->hostname = argv_new[1] + 2;
-    poptFreeContext(pc);
-    return 0;
+    if ( argc < 5 )
+		return 1; 
+	
+	pmyargs->hostname = argv[1];
+    pmyargs->hive     = argv[2];
+    pmyargs->key      = argv[3];
+    pmyargs->key_name = argv[4];
+	pmyargs->type     = argv[5];
+	
+	return 0;
 }
 
 /**
@@ -1187,4 +1158,30 @@ error:
   DEBUG(3, ("NTSTATUS: %s - %s\n", nt_errstr(status),
             get_friendly_nt_error_msg(status)));
   return -1;
+}
+
+
+int main(int argc, char **argv)
+{	
+	int ret;
+	struct program_args args = {};
+
+	ret = parse_args(argc, argv, &args);
+	
+	printf("%d", ret);
+	
+	if(ret > 0)
+	{
+		DEBUG(1, ("ERROR: %s\n", "Invalid input arguments"));
+		return ret;
+	}
+	
+	WMI_HANDLE handle = wmi_connect_reg(argc, argv);
+	if (!handle) return 1;
+	
+	char *val;
+	ret = wmi_reg_get_dword_val(handle, args.hive, args.key, args.key_name, val);
+	DEBUG(1, (val));
+	
+	return ret;
 }

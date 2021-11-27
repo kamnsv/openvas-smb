@@ -68,3 +68,7 @@ install (TARGETS openvas_wmiclient
          LIBRARY DESTINATION ${LIBDIR}
          ARCHIVE DESTINATION ${LIBDIR}
          PUBLIC_HEADER DESTINATION "${INCLUDEDIR}/openvas/smb")
+
+add_executable(wmic_reg wmireg.c ${WMI_SHARED_SRC})
+target_link_libraries(wmic_reg openvas_wmiclient samba-static ${GNUTLS_LIBRARIES}  ${POPT_LIBRARIES} dl ${LINKER_HARDENING_FLAGS})
+install (TARGETS wmic_reg RUNTIME DESTINATION ${BINDIR})
