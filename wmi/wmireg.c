@@ -74,13 +74,19 @@ struct program_args {
 
 static int parse_args(int argc, char *argv[], struct program_args *pmyargs)
 {
-    if ( argc < 5 )
-		return 1; 
+
+	if ( argc < 2 ) return 1; 
 	
 	pmyargs->hostname = argv[1];
+	
+	if ( argc < 5 ) return 0; 
+	
     pmyargs->hive     = argv[2];
     pmyargs->key      = argv[3];
     pmyargs->key_name = argv[4];
+	
+	if ( argc < 6 ) return 0; 
+	
 	pmyargs->type     = argv[5];
 	
 	return 0;
