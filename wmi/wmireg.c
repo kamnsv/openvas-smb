@@ -1187,7 +1187,7 @@ int main(int argc, char **argv)
 	
 	char *val;
 	ret = wmi_reg_get_dword_val(handle, args.hive, args.key, args.key_name, val);
-	DEBUG(1, (val));
+	printf("%s", val);
 	
 	return ret;
 }
