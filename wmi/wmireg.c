@@ -63,32 +63,82 @@ struct WBEMOBJECT;
                         } else { \
                             DEBUG(1, ("OK   : %s\n", msg)); \
                         }
+#define DEBUG(code, msg) printf(msg); printf("\n")
 
 struct program_args {
     char *hostname;
-    unsigned int hive;
+    char *hive;
+    char *query;
     char *key;
-    char *key_name;
 	char *type;
+	char *delim;
+	char *ns;
 };
 
 static int parse_args(int argc, char *argv[], struct program_args *pmyargs)
 {
+    poptContext pc;
+    int opt, i;
 
-	if ( argc < 2 ) return 1; 
+    int argc_new;
+    char **argv_new;
+
+    struct poptOption long_options[] = {
+	POPT_AUTOHELP
+	POPT_COMMON_SAMBA
+	POPT_COMMON_CONNECTION
+	POPT_COMMON_CREDENTIALS
+	POPT_COMMON_VERSION
+        {"namespace", 0, POPT_ARG_STRING, &pmyargs->ns, 0,
+         "WMI namespace, default to root\\cimv2", 0},
 	
-	pmyargs->hostname = argv[1];
-	
-	if ( argc < 5 ) return 0; 
-	
-    pmyargs->hive     = argv[2];
-    pmyargs->key      = argv[3];
-    pmyargs->key_name = argv[4];
-	
-	if ( argc < 6 ) return 0; 
-	
-	pmyargs->type     = argv[5];
-	
+	{"hive", 0, POPT_ARG_STRING, &pmyargs->hive, 0,
+	 "hive the root section is HKLM | HKCU | HKCR | HKU | HKCC , default to HKLM", 0},
+
+	{"type", 0, POPT_ARG_STRING, &pmyargs->type, 0,
+	 "type for the value parameter reg is REG_SZ|REG_MULTI_SZ|REG_DWORD_BIG_ENDIAN|REG_DWORD|REG_BINARY|REG_DWORD_LITTLE_ENDIAN|REG_NONE|REG_EXPAND_SZ ], default to REG_DWORD", 0},
+	 
+	{"key", 0, POPT_ARG_STRING, &pmyargs->key, 0,
+	 "key name parameter reg, default empty", 0},
+	 
+	{"type", 0, POPT_ARG_STRING, &pmyargs->type, 0,
+	 "type for the value parameter reg, default to dword", 0},
+	 
+	POPT_TABLEEND
+    };
+
+    pc = poptGetContext("wmi", argc, (const char **) argv,
+	        long_options, POPT_CONTEXT_KEEP_FIRST);
+
+    poptSetOtherOptionHelp(pc, "//host query\n\nExample: wmic_reg -U [domain/]adminuser%password //host \"SYSTEM\\Select\" --key=\"Current\"");
+
+    while ((opt = poptGetNextOpt(pc)) != -1) {
+	poptPrintUsage(pc, stdout, 0);
+	poptFreeContext(pc);
+	exit(1);
+    }
+
+    argv_new = discard_const_p(char *, poptGetArgs(pc));
+
+    argc_new = argc;
+    for (i = 0; i < argc; i++) {
+	if (argv_new[i] == NULL) {
+	    argc_new = i;
+	    break;
+	}
+    }
+
+    if (argc_new != 3
+	|| strncmp(argv_new[1], "//", 2) != 0) {
+	poptPrintUsage(pc, stdout, 0);
+	poptFreeContext(pc);
+	exit(1);
+    }
+
+    /* skip over leading "//" in host name */
+    pmyargs->hostname = argv_new[1] + 2;
+    pmyargs->query = argv_new[2];
+    poptFreeContext(pc);
 	return 0;
 }
 
@@ -112,13 +162,11 @@ wmi_connect_reg (int argc, char **argv)
   struct program_args args = {};
 
   ret = parse_args(argc, argv, &args);
- 
-  if(ret == 1)
-  {
-    DEBUG(1, ("ERROR: %s\n", "Invalid input arguments"));
-    return NULL;
-  }
-
+	
+  /* apply default values if not given by user*/
+  if (!args.ns) args.ns = "root\\default";
+  if (!args.delim) args.delim = "|";
+	
   dcerpc_init();
   dcerpc_table_init();
 
@@ -134,7 +182,7 @@ wmi_connect_reg (int argc, char **argv)
   com_init_ctx(&ctx, NULL);
   dcom_client_init(ctx, cmdline_credentials);
 
-  result = WBEM_ConnectServer(ctx, args.hostname, "root\\default", 0, 0, 0, 0, 0, 0, &pWS);
+  result = WBEM_ConnectServer(ctx, args.hostname, args.ns, 0, 0, 0, 0, 0, 0, &pWS);
   WERR_CHECK("Login to remote object.\n");
   return pWS;
 
@@ -478,8 +526,11 @@ int wmi_reg_get_dword_val(WMI_HANDLE handle, const unsigned int hive, const char
   struct IWbemServices *pWS;
 
   pWS = (struct IWbemServices *) handle;
+  
+  
   if(pWS->ctx == 0)
     return -1;
+
   result = IWbemServices_GetObject(pWS, pWS->ctx, "StdRegProv",
                                    WBEM_FLAG_RETURN_WBEM_COMPLETE, NULL,
                                    &wco, NULL);
@@ -496,9 +547,10 @@ int wmi_reg_get_dword_val(WMI_HANDLE handle, const unsigned int hive, const char
     v.v_uint32 = hive;
   else
     v.v_uint32 = 0x80000002; // Try default, HKEY_LOCAL_MACHINE
-
+		
   result = IWbemClassObject_Put(in, pWS->ctx, "hDefKey", 0, &v, 0);
   WERR_CHECK("IWbemClassObject_Put(CommandLine).");
+
 
   v.v_string = key;
   result = IWbemClassObject_Put(in, pWS->ctx, "sSubKeyName", 0, &v, 0);
@@ -1174,20 +1226,15 @@ int main(int argc, char **argv)
 
 	ret = parse_args(argc, argv, &args);
 	
-	printf("%d", ret);
-	
-	if(ret > 0)
-	{
-		DEBUG(1, ("ERROR: %s\n", "Invalid input arguments"));
-		return ret;
-	}
-	
+	DEBUG(1, ("Parse host: %s\n", args.hostname));
 	WMI_HANDLE handle = wmi_connect_reg(argc, argv);
-	if (!handle) return 1;
-	
+
+	if (NULL == handle) return 1;
+
 	char *val;
-	ret = wmi_reg_get_dword_val(handle, args.hive, args.key, args.key_name, val);
-	printf("%s", val);
-	
+	//ret = wmi_reg_get_dword_val(handle, args.hive, args.key, args.key_name, val);
+	DEBUG(1, ("Query reg %s: %s\n", args.query, args.key));
+	ret = wmi_reg_get_dword_val(handle, 0x80000002, args.query, args.key, val);
+	printf(val);
 	return ret;
 }

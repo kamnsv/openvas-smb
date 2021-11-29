@@ -27,7 +27,7 @@ is available at <https://www.greenbone.net/en/testnow>.
 
 ## Complete build
 
-For a complete build or rebuild, use the **rebuild** script. Here you can set the path for the installation. Use `chmod + x ./rebuild` once and then call `./rebuild` each time.
+For a complete build or rebuild, use the **rebuild** script. Here you can set the path for the installation. Use `chmod +x ./rebuild` once and then call `./rebuild` each time.
 
 ## Support
 
